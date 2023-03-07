@@ -14,7 +14,7 @@ trait TextResponse {
         status = Status.TooManyRequests,
         body = Body.fromString(message),
       ).withRetryAfter(retryAfter.toString)
-    case Left(err) =>
+    case Left(err)                                      =>
       Response(
         status = Status.InternalServerError,
         body = Body.fromString(err.getMessage),

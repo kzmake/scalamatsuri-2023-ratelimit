@@ -1,18 +1,18 @@
 package com.github.kzmake.echo
 
+import scala.collection.concurrent.TrieMap
+
 import com.github.kzmake.kvstore.KVStoreIOEffect._
 import com.github.kzmake.kvstore._
 import com.github.kzmake.throttling.ThrottlingIOEffect._
 import com.github.kzmake.throttling.ThrottlingIOTypes._
-import com.github.kzmake.throttling.{ThrottlingIO, ThrottlingIOInterpreter, ThrottlingIOInterpreterImpl}
+import com.github.kzmake.throttling._
 import org.atnos.eff._
 import org.atnos.eff.all._
 import org.atnos.eff.syntax.all._
 import zio._
 import zio.http._
 import zio.http.model.Method
-
-import scala.collection.concurrent.TrieMap
 
 object Echo extends ZIOAppDefault with TextResponse with AuthN {
   private val store: TrieMap[String, (Long, Long)] = TrieMap.empty

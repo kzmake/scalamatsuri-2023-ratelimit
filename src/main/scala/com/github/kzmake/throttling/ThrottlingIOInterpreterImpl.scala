@@ -1,5 +1,9 @@
 package com.github.kzmake.throttling
 
+import java.time.Instant
+
+import scala.collection.concurrent.TrieMap
+
 import cats.syntax.all._
 import com.github.kzmake.error.TooManyRequestError
 import com.github.kzmake.kvstore.KVStoreIO
@@ -11,9 +15,6 @@ import org.atnos.eff._
 import org.atnos.eff.all._
 import org.atnos.eff.either.errorTranslate
 import org.atnos.eff.syntax.all._
-
-import java.time.Instant
-import scala.collection.concurrent.TrieMap
 
 class ThrottlingIOInterpreterImpl() extends ThrottlingIOInterpreter {
   def now[R]: Eff[R, Long]                      = Instant.now().toEpochMilli.pureEff[R] // !!
@@ -77,7 +78,7 @@ class ThrottlingIOInterpreterImpl() extends ThrottlingIOInterpreter {
           n <- now[U]
           _ <- x.traverse { case (key, cost) => validate[U](key, cost, n) }
           _ <- x.traverse { case (key, cost) => update[U](key, cost, n) }
-          _ = x.map { case (key, cost) => println(s"  ts($n): ...$key -> use $cost") }
+          _ = x.map { case (key, cost) => println(s"  ts($n): ...$key -> removed $cost") }
           _ = println("")
         } yield ()
     }

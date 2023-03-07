@@ -1,11 +1,11 @@
 package com.github.kzmake.throttling
 
+import scala.collection.concurrent.TrieMap
+
 import cats.data.State
 import com.github.kzmake.kvstore.KVStoreIOTypes.KVStoreIOStack
 import org.atnos.eff._
 import org.atnos.eff.all._
-
-import scala.collection.concurrent.TrieMap
 
 object ThrottlingIOTypes {
   type _throttlingio[R] = ThrottlingIO |= R

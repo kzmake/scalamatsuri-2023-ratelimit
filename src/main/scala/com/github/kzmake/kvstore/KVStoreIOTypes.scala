@@ -1,8 +1,9 @@
 package com.github.kzmake.kvstore
 
+import scala.collection.concurrent.TrieMap
+
 import cats.data.State
 import org.atnos.eff._
-import scala.collection.concurrent.TrieMap
 
 object KVStoreIOTypes {
   type _kvstoreio[R] = KVStoreIO |= R

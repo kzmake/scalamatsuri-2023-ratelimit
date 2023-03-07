@@ -1,12 +1,12 @@
 package com.github.kzmake.throttling
 
+import scala.collection.concurrent.TrieMap
+
 import com.github.kzmake.kvstore.KVStoreIOTypes._
 import com.github.kzmake.throttling.ThrottlingIOTypes._
 import org.atnos.eff._
 import org.atnos.eff.all._
 import org.atnos.eff.syntax.all._
-
-import scala.collection.concurrent.TrieMap
 
 object ThrottlingIOEffect extends ThrottlingIOEffect
 trait ThrottlingIOEffect  extends ThrottlingIOOps

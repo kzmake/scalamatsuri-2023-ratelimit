@@ -1,12 +1,14 @@
 package com.github.kzmake.kvstore
 
+import java.time.Instant
+
+import scala.collection.concurrent.TrieMap
+
 import com.github.kzmake.kvstore.KVStoreIO._
 import com.github.kzmake.kvstore.KVStoreIOTypes._
 import org.atnos.eff.Interpret.translate
 import org.atnos.eff._
 import org.atnos.eff.syntax.all._
-import java.time.Instant
-import scala.collection.concurrent.TrieMap
 
 class KVStoreIOInterpreterImpl() extends KVStoreIOInterpreter {
   override def run[R, U, A](
