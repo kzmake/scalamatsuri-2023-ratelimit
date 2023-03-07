@@ -80,8 +80,8 @@ class ThrottlingIOInterpreterImpl() extends ThrottlingIOInterpreter {
           _ <- x.traverse { case (key, cost) => update[U](key, cost, n) }
 
           // debug
-          _ = x.map { case (key, cost) => println(s"  ts($n): ...$key -> removed $cost") }
-          _ = println("")
+          //  _ = x.map { case (key, cost) => println(s"  ts($n): ...$key -> removed $cost") }
+          // _ = println("")
 
         } yield ()
     }
