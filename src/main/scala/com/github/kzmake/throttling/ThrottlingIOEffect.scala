@@ -1,9 +1,10 @@
 package com.github.kzmake.throttling
 
-import com.github.kzmake.throttling.ThrottlingIO.Throttle
+import com.github.kzmake.kvstore.KVStoreIOTypes._
 import com.github.kzmake.throttling.ThrottlingIOTypes._
-import org.atnos.eff.syntax.all.StateEffectOps
 import org.atnos.eff._
+import org.atnos.eff.all._
+import org.atnos.eff.syntax.all._
 
 import scala.collection.concurrent.TrieMap
 
@@ -16,11 +17,12 @@ trait ThrottlingIOOps {
         implicit
         interpreter: ThrottlingIOInterpreter,
         m1: Member.Aux[ThrottlingIO, R, U1],
-        m2: Member.Aux[ThrottlingKeyCost, U1, U2],
-        mkc: _throttlingKeyCost[U1],
+        m2: Member.Aux[StateKeyCost, U1, U2],
+        mk: _kvstoreio[U1],
+        me: _throwableEither[U1],
       ): Eff[U2, A] =
       interpreter
         .run(effects << ThrottlingIO.throttle)
-        .evalStateU[TrieMap[Key, Cost], U2](TrieMap.empty)
+        .evalStateU[TrieMap[String, Int], U2](TrieMap.empty)
   }
 }

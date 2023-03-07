@@ -1,18 +1,17 @@
 package com.github.kzmake.throttling
 
 import cats.data.State
+import com.github.kzmake.kvstore.KVStoreIOTypes.KVStoreIOStack
 import org.atnos.eff._
+import org.atnos.eff.all._
 
 import scala.collection.concurrent.TrieMap
 
 object ThrottlingIOTypes {
   type _throttlingio[R] = ThrottlingIO |= R
 
-  type Key     = String
-  type Cost    = Int
+  type StateKeyCost[A]  = State[TrieMap[String, Int], A]
+  type _stateKeyCost[R] = StateKeyCost /= R
 
-  type ThrottlingKeyCost[A]  = State[TrieMap[Key, Cost], A]
-  type _throttlingKeyCost[R] = ThrottlingKeyCost /= R
-
-  type ThrottlingIOStack = Fx.fx2[ThrottlingIO, ThrottlingKeyCost]
+  type ThrottlingIOStack = Fx.append[Fx.fx3[ThrottlingIO, StateKeyCost, ThrowableEither], KVStoreIOStack]
 }

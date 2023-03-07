@@ -1,57 +1,84 @@
 package com.github.kzmake.throttling
 
 import cats.syntax.all._
+import com.github.kzmake.error.TooManyRequestError
+import com.github.kzmake.kvstore.KVStoreIO
+import com.github.kzmake.kvstore.KVStoreIOTypes._
 import com.github.kzmake.throttling.ThrottlingIO._
 import com.github.kzmake.throttling.ThrottlingIOTypes._
 import org.atnos.eff.Interpret.translate
 import org.atnos.eff._
-import org.atnos.eff.state.stateMemberInLens
+import org.atnos.eff.all._
+import org.atnos.eff.either.errorTranslate
 import org.atnos.eff.syntax.all._
+
 import java.time.Instant
 import scala.collection.concurrent.TrieMap
 
-class ThrottlingIOInterpreterImpl(
-    kvs: TrieMap[Key, Long] = TrieMap.empty[Key, Long],
-  ) extends ThrottlingIOInterpreter {
+class ThrottlingIOInterpreterImpl() extends ThrottlingIOInterpreter {
+  def now[R]: Eff[R, Long]                      = Instant.now().toEpochMilli.pureEff[R] // !!
+  def getBucket[R](key: String): Eff[R, Bucket] = Bucket.mock(key).pureEff[R]           // !!
+
+  def validate[R: _kvstoreio: _throwableEither](key: String, cost: Long, ta: Long): Eff[R, Unit] = for {
+    tat <- KVStoreIO.get(key).map(_.getOrElse(ta))
+    b   <- getBucket(key)
+    _   <- {
+      // [ms]
+      val `t_a`      = ta
+      val T          = b.leak
+      val tau        = b.size * T
+      val `TAT_n`    = tat
+      val `TAT_n+1`  = `TAT_n` + cost * T
+      val retryAfter = `TAT_n+1` - `t_a` - (tau + T)
+      if (`t_a` + (tau + T) - `TAT_n+1` > 0)
+        right(())
+      else
+        left(
+          TooManyRequestError(
+            message = s"error: rate limit!!: retry after $retryAfter[ms] (bucket: $key)",
+            retryAfter = (retryAfter / 1000.0).ceil.toLong,
+          ),
+        )
+    }
+  } yield ()
+  def update[R: _kvstoreio](key: String, cost: Long, ta: Long): Eff[R, Unit]                     = for {
+    tat <- KVStoreIO.get(key).map(_.getOrElse(ta))
+    b   <- getBucket(key)
+    _   <- {
+      val `t_a`     = ta
+      val T         = b.leak
+      val tau       = b.size * T
+      val `TAT_n`   = tat
+      val `TAT_n+1` = `TAT_n` + cost * T
+      val expireAt  = `TAT_n+1` - `t_a`
+      KVStoreIO.setEx(key, `TAT_n+1`, expireAt)
+    }
+  } yield ()
+
   override def run[R, U, A](
       effects: Eff[R, A],
     )(implicit
       m: Member.Aux[ThrottlingIO, R, U],
-      mkc: _throttlingKeyCost[U],
+      ms: _stateKeyCost[U],
+      mk: _kvstoreio[U],
+      me: _throwableEither[U],
     ): Eff[U, A] = translate(effects)(new Translate[ThrottlingIO, U] {
     def apply[X](v: ThrottlingIO[X]): Eff[U, X] = v match {
-      case Use(key, cost) =>
+      case Use(bucket, cost) =>
         for {
-          keyCost <- StateEffect.get[U, TrieMap[Key, Cost]]
-          _ = keyCost.update(key, keyCost.getOrElse(key, 0) + cost)
-          _ <- StateEffect.put[U, TrieMap[Key, Cost]](keyCost)
+          k <- bucket.pureEff[U]
+          v <- StateEffect.get[U, TrieMap[String, Int]].map(_.getOrElse(k, 0))
+          _ <- StateEffect.modify[U, TrieMap[String, Int]](s => s += (k -> (v + cost)))
         } yield ()
 
       case Throttle() =>
         for {
-          keyCost <- StateEffect.get[U, TrieMap[Key, Cost]]
-          now = Instant.now().toEpochMilli
-          ta  = now
-          _   = keyCost.toList.map {
-            case (key, cost) =>
-              val tat_n = kvs
-                .get(key)                 // get tat_n
-                .filter(tat => tat > now) // expired
-                .getOrElse(ta)            // if n = 0: use ta
-              val T   = 1000 // ms // quota.leak.toMillis
-              val tau = 3 * T
-              val tat_n1 = tat_n + cost * T
-
-              if (ta + (tau + T) - tat_n1 > 0) {
-                println(s"ok: ${ta + (tau + T) - tat_n1}")
-                kvs += (key -> tat_n1)
-                Right(())
-              }
-              else {
-                println(s"ng: ${ta + (tau + T) - tat_n1}")
-                Left(())
-              }
-          }
+          x <- StateEffect.get[U, TrieMap[String, Int]].map(_.toSeq)
+          n <- now[U]
+          _ <- x.traverse { case (key, cost) => validate[U](key, cost, n) }
+          _ <- x.traverse { case (key, cost) => update[U](key, cost, n) }
+          _ = x.map { case (key, cost) => println(s"  ts($n): ...$key -> use $cost") }
+          _ = println("")
         } yield ()
     }
   })
