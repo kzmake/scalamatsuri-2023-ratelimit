@@ -51,8 +51,8 @@ object HelloWorld extends ZIOAppDefault with TextResponse with AuthN {
 
     for {
       u <- authenticate[R](req)
-      _ <- ThrottlingIO.use[R]("perSystem", 1)
-      _ <- ThrottlingIO.use[R](u, "perUser", 1)
+      _ <- ThrottlingIO.use[R]("/-/perSystem", 1)
+      _ <- ThrottlingIO.use[R](s"/$u/perUser", 1)
       x <- doA[R]
     } yield Response.text(x)
   }
@@ -73,8 +73,8 @@ object HelloWorld extends ZIOAppDefault with TextResponse with AuthN {
 
     for {
       u <- authenticate[R](req)
-      _ <- ThrottlingIO.use[R]("perSystem", 2)
-      _ <- ThrottlingIO.use[R](u, "perUser", 2)
+      _ <- ThrottlingIO.use[R]("/-/perSystem", 2)
+      _ <- ThrottlingIO.use[R](s"/$u/perUser", 2)
       x <- doA[R] // heavy
     } yield Response.text(x)
   }
@@ -82,24 +82,24 @@ object HelloWorld extends ZIOAppDefault with TextResponse with AuthN {
   def multiple[R: _throttlingio](req: Request): Eff[R, Response] = {
 
     def doA[R1: _throttlingio](user: AuthenticatedUser): Eff[R1, String] = for {
-      _ <- ThrottlingIO.use[R1](user, "tier1", 1)
+      _ <- ThrottlingIO.use[R1](s"/$user/tier1", 1)
       v <- pure[R1, String]("Hello")
     } yield v
 
     def doB[R2: _throttlingio](user: AuthenticatedUser): Eff[R2, String] = for {
-      _ <- ThrottlingIO.use[R2](user, "tier2", 1)
+      _ <- ThrottlingIO.use[R2](s"/$user/tier2", 1)
       v <- pure[R2, String]("world!")
     } yield v
 
     def doC[R3: _throttlingio](user: AuthenticatedUser)(hello: String, world: String): Eff[R3, String] = for {
-      _ <- ThrottlingIO.use[R3](user, "tier1", 1)
+      _ <- ThrottlingIO.use[R3](s"/$user/tier1", 1)
       v <- pure[R3, String](s"$hello $world")
     } yield v
 
     for {
       u <- authenticate[R](req)
-      _ <- ThrottlingIO.use[R]("perSystem", 1)
-      _ <- ThrottlingIO.use[R](u, "perUser", 1)
+      _ <- ThrottlingIO.use[R]("/-/perSystem", 1)
+      _ <- ThrottlingIO.use[R](s"/$u/perUser", 1)
       x <- doA[R](u)
       y <- doB[R](u)
       z <- doC[R](u)(x, y)
