@@ -7,4 +7,10 @@ object Dependencies {
 
   val AtnosEff    = "6.0.2"
   val `atnos-eff` = "org.atnos" %% "eff" % AtnosEff
+
+  val ZIOVersion          = "2.0.10"
+  val zio                 = "dev.zio" %% "zio"               % ZIOVersion
+  val `zio-test`          = "dev.zio" %% "zio-test"          % ZIOVersion % Test
+  val `zio-test-sbt`      = "dev.zio" %% "zio-test-sbt"      % ZIOVersion % Test
+  val `zio-test-magnolia` = "dev.zio" %% "zio-test-magnolia" % ZIOVersion % Test
 }

@@ -11,6 +11,8 @@ lazy val root = (project in file("."))
   .settings(BuildHelper.stdSettings)
   .settings(
     libraryDependencies ++= Seq(`atnos-eff`, `zio-http`, `zio-http-test`),
+    libraryDependencies ++= Seq(zio, `zio-test`, `zio-test-sbt`),
+    testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"),
   )
 
 addCommandAlias("fmt", "scalafmt; Test / scalafmt; fix;")

@@ -1,7 +1,6 @@
 package com.github.kzmake.api
 
 import scala.collection.concurrent.TrieMap
-
 import com.github.kzmake.kvstore.KVStoreIOEffect._
 import com.github.kzmake.kvstore._
 import com.github.kzmake.throttling.ThrottlingIOEffect._
@@ -15,13 +14,12 @@ import zio.http._
 import zio.http.model.Method
 
 object HelloWorld extends ZIOAppDefault with TextResponse with AuthN {
-  private val store: TrieMap[String, (Long, Long)] = TrieMap.empty
-
   implicit private val tInt: ThrottlingIOInterpreter = new ThrottlingIOInterpreterImpl()
   implicit private val kInt: KVStoreIOInterpreter    = new KVStoreIOInterpreterImpl()
 
-  val app = {
+  def app(store: TrieMap[String, (Long, Long)] = TrieMap.empty): Http[Any, Nothing, Request, Response] = {
     type S = ThrottlingIOStack
+
     Http.collect[Request] {
       // GET /simple
       // costs:
@@ -110,7 +108,7 @@ object HelloWorld extends ZIOAppDefault with TextResponse with AuthN {
 
   override def run =
     ZIOAppArgs.getArgs.flatMap { _ =>
-      (Server.install(app.withDefaultErrorResponse).flatMap { port =>
+      (Server.install(app().withDefaultErrorResponse).flatMap { port =>
         Console.printLine(s"Started server on port: $port")
       } *> ZIO.never)
         .provide(ServerConfig.live(ServerConfig.default.port(3000)), Server.live)
