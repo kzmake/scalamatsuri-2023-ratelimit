@@ -1,4 +1,4 @@
-package com.github.kzmake.echo
+package com.github.kzmake.api
 
 import scala.collection.concurrent.TrieMap
 
@@ -14,7 +14,7 @@ import zio._
 import zio.http._
 import zio.http.model.Method
 
-object Echo extends ZIOAppDefault with TextResponse with AuthN {
+object HelloWorld extends ZIOAppDefault with TextResponse with AuthN {
   private val store: TrieMap[String, (Long, Long)] = TrieMap.empty
 
   implicit private val tInt: ThrottlingIOInterpreter = new ThrottlingIOInterpreterImpl()
@@ -29,19 +29,19 @@ object Echo extends ZIOAppDefault with TextResponse with AuthN {
       //   /alice/perUser -> 1
       case req @ Method.GET -> !! / "simple" => simple[S](req).runThrottlingIO.runKVStoreIO(store).runEither[Throwable].map(toResponse).run
 
-      // GET /heavy
+      // GET /double
       // costs:
       //   /-/perSystem -> 3
       //   /alice/perUser -> 3
-      case req @ Method.GET -> !! / "heavy" => heavy[S](req).runThrottlingIO.runKVStoreIO(store).runEither[Throwable].map(toResponse).run
+      case req @ Method.GET -> !! / "double" => double[S](req).runThrottlingIO.runKVStoreIO(store).runEither[Throwable].map(toResponse).run
 
-      // GET /complex
+      // GET /multiple
       // costs:
       //   /-/perSystem -> 1
       //   /alice/perUser -> 1
       //   /alice/tier1 -> 2
       //   /alice/tier2 -> 1
-      case req @ Method.GET -> !! / "complex" => complex[S](req).runThrottlingIO.runKVStoreIO(store).runEither[Throwable].map(toResponse).run
+      case req @ Method.GET -> !! / "multiple" => multiple[S](req).runThrottlingIO.runKVStoreIO(store).runEither[Throwable].map(toResponse).run
     }
   }
 
@@ -59,7 +59,7 @@ object Echo extends ZIOAppDefault with TextResponse with AuthN {
     } yield Response.text(x)
   }
 
-  def heavy[R: _throttlingio](req: Request): Eff[R, Response] = {
+  def double[R: _throttlingio](req: Request): Eff[R, Response] = {
 
     def doA[R1]: Eff[R1, String] = {
       def rot13(v: String): String = v.map {
@@ -75,13 +75,13 @@ object Echo extends ZIOAppDefault with TextResponse with AuthN {
 
     for {
       u <- authenticate[R](req)
-      _ <- ThrottlingIO.use[R]("perSystem", 3)
-      _ <- ThrottlingIO.use[R](u, "perUser", 3)
+      _ <- ThrottlingIO.use[R]("perSystem", 2)
+      _ <- ThrottlingIO.use[R](u, "perUser", 2)
       x <- doA[R] // heavy
     } yield Response.text(x)
   }
 
-  def complex[R: _throttlingio](req: Request): Eff[R, Response] = {
+  def multiple[R: _throttlingio](req: Request): Eff[R, Response] = {
 
     def doA[R1: _throttlingio](user: AuthenticatedUser): Eff[R1, String] = for {
       _ <- ThrottlingIO.use[R1](user, "tier1", 1)

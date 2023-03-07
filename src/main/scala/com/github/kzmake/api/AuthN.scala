@@ -1,4 +1,4 @@
-package com.github.kzmake.echo
+package com.github.kzmake.api
 
 import org.atnos.eff.Eff
 import org.atnos.eff.syntax.all._

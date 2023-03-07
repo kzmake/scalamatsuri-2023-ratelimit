@@ -1,4 +1,4 @@
-package com.github.kzmake.echo
+package com.github.kzmake.api
 
 import com.github.kzmake.error.TooManyRequestError
 import zio.http._
