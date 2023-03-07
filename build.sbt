@@ -1,6 +1,6 @@
 import Dependencies._
 
-val rootName = "echo"
+val rootName = "example-rate-limit"
 
 ThisBuild / organization := "com.github.kzmake"
 ThisBuild / version      := "0.1.0"
