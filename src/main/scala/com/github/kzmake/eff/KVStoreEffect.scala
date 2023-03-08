@@ -1,14 +1,14 @@
 package com.github.kzmake.eff
 
-import cats.data.State
+import java.time.Instant
 
 import scala.collection.concurrent.TrieMap
-import org.atnos.eff._
+
+import cats.data.State
 import org.atnos.eff.Interpret.translate
+import org.atnos.eff._
 import org.atnos.eff.all._
 import org.atnos.eff.syntax.all._
-
-import java.time.Instant
 
 trait KVStoreEffect  extends KVStoreCreation with KVStoreInterpretation
 object KVStoreEffect extends KVStoreEffect
@@ -28,7 +28,7 @@ trait KVStoreCreation extends KVStoreTypes {
   def get[R: _kvstore](key: String): Eff[R, Option[Long]]                   = Eff.send[KVStore, R, Option[Long]](Get(key))
 }
 
-trait KVStoreInterpretation extends KVStoreTypes {
+trait KVStoreInterpretation  extends KVStoreTypes {
   def run[R, U, A](
       effects: Eff[R, A],
     )(implicit

@@ -1,10 +1,10 @@
 package com.github.kzmake.api
 
+import scala.collection.concurrent.TrieMap
+
 import zio.http._
 import zio.http.model._
 import zio.test._
-
-import scala.collection.concurrent.TrieMap
 
 object HelloWorldSpec extends ZIOSpecDefault {
   override def spec =

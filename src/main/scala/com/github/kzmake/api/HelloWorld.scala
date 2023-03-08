@@ -1,6 +1,7 @@
 package com.github.kzmake.api
 
 import scala.collection.concurrent.TrieMap
+
 import com.github.kzmake.eff.ThrottlingIOEffect
 import com.github.kzmake.eff.all._
 import com.github.kzmake.eff.syntax.all._

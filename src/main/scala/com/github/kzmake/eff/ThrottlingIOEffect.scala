@@ -1,18 +1,18 @@
 package com.github.kzmake.eff
 
+import java.time.Instant
+
+import scala.collection.concurrent.TrieMap
+
 import cats.data.State
 import cats.syntax.all._
 import com.github.kzmake.eff._
 import com.github.kzmake.eff.all._
 import com.github.kzmake.error.TooManyRequestError
-
-import scala.collection.concurrent.TrieMap
-import org.atnos.eff._
 import org.atnos.eff.Interpret.translate
+import org.atnos.eff._
 import org.atnos.eff.all._
 import org.atnos.eff.syntax.all._
-
-import java.time.Instant
 
 trait ThrottlingIOEffect  extends ThrottlingIOCreation with ThrottlingIOInterpretation
 object ThrottlingIOEffect extends ThrottlingIOEffect

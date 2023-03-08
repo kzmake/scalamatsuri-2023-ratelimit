@@ -1,11 +1,11 @@
 package com.github.kzmake.eff.syntax
 
+import scala.collection.concurrent.TrieMap
+
 import com.github.kzmake.eff._
 import com.github.kzmake.eff.all._
 import org.atnos.eff._
 import org.atnos.eff.syntax.all._
-
-import scala.collection.concurrent.TrieMap
 
 trait kvstore {
   implicit class KVStoreEffectOps[R, A](e: Eff[R, A]) {
