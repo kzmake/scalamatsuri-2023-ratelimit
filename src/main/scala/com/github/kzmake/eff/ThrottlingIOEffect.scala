@@ -38,41 +38,41 @@ trait ThrottlingIOInterpretation  extends ThrottlingIOTypes {
 
   def getBucket[R](key: String): Eff[R, Bucket] = Bucket.mock(key).pureEff[R] // !!
 
-  def validate[R: _kvstore: _throwableEither](key: String, cost: Long, ta: Long): Eff[R, Unit] = for {
+  def validate[R: _kvstore: _throwableEither](key: String, quantity: Long, ta: Long): Eff[R, Unit] = for {
     tat <- KVStoreEffect.get[R](key).map(_.getOrElse(ta))
     b   <- getBucket[R](key)
     _   <- {
       // [ms]
-      val `t_a`      = ta
       val T          = b.leak
       val tau        = b.size * T
-      val `TAT_n`    = tat
-      val `TAT_n+1`  = `TAT_n` + cost * T
-      val retryAfter = `TAT_n+1` - `t_a` - (tau + T)
+      val newTAT     = tat + quantity * T
+      val allowAt    = newTAT - (tau + T)
+      val retryAfter = if (allowAt - ta > 0) allowAt - ta else 0
 
-      if (`t_a` + (tau + T) - `TAT_n+1` > 0)
+      if (ta + (tau + T) - newTAT > 0) // NOTE: now > allowAt
         right[R, Throwable, Unit](())
       else
         left[R, Throwable, Unit](
           TooManyRequestError(
-            message = s"error: rate limit!!: retry after $retryAfter[ms] (bucket: $key)",
-            retryAfter = (retryAfter / 1000.0).ceil.toLong,
+            message = s"error: rate limit!! retry after $retryAfter[ms] (bucket: $key)",
+            retryAfter = (retryAfter / 1000.0).ceil.toLong, // NOTE: ms -> ceil(sec)
           ),
         )
     }
   } yield ()
 
-  def update[R: _kvstore](key: String, cost: Long, ta: Long): Eff[R, Unit] = for {
+  def update[R: _kvstore](key: String, quantity: Long, ta: Long): Eff[R, Unit] = for {
     tat <- KVStoreEffect.get(key).map(_.getOrElse(ta))
     b   <- getBucket(key)
     _   <- {
-      val `t_a`     = ta
-      val T         = b.leak
-      val tau       = b.size * T
-      val `TAT_n`   = tat
-      val `TAT_n+1` = `TAT_n` + cost * T
-      val expireAt  = `TAT_n+1` - `t_a`
-      KVStoreEffect.setEx(key, `TAT_n+1`, expireAt)
+      // [ms]
+      val T        = b.leak
+      val tau      = b.size * T
+      val newTAT   = tat + quantity * T
+      val expireAt = newTAT
+      val ttl      = expireAt - ta
+
+      KVStoreEffect.setEx(key, newTAT, ttl)
     }
   } yield ()
 
@@ -100,7 +100,7 @@ trait ThrottlingIOInterpretation  extends ThrottlingIOTypes {
           _  <- xs.traverse { case (key, cost) => update[U](key, cost, n) }
 
           // debug
-          //  _ = x.map { case (key, cost) => println(s"  ts($n): ...$key -> removed $cost") }
+          //  _ = xs.map { case (key, cost) => println(s"  ts($n): ...$key -> removed $cost") }
           // _ = println("")
 
         } yield ()
