@@ -1,11 +1,9 @@
 package com.github.kzmake.api
 
 import scala.collection.concurrent.TrieMap
-import com.github.kzmake.kvstore.KVStoreIOEffect._
-import com.github.kzmake.kvstore._
-import com.github.kzmake.throttling.ThrottlingIOEffect._
-import com.github.kzmake.throttling.ThrottlingIOTypes._
-import com.github.kzmake.throttling._
+import com.github.kzmake.eff.ThrottlingIOEffect
+import com.github.kzmake.eff.all._
+import com.github.kzmake.eff.syntax.all._
 import org.atnos.eff._
 import org.atnos.eff.all._
 import org.atnos.eff.syntax.all._
@@ -14,9 +12,6 @@ import zio.http._
 import zio.http.model.Method
 
 object HelloWorld extends ZIOAppDefault with TextResponse with AuthN {
-  implicit private val tInt: ThrottlingIOInterpreter = new ThrottlingIOInterpreterImpl()
-  implicit private val kInt: KVStoreIOInterpreter    = new KVStoreIOInterpreterImpl()
-
   def app(store: TrieMap[String, (Long, Long)] = TrieMap.empty): Http[Any, Nothing, Request, Response] = {
     type S = ThrottlingIOStack
 
@@ -25,13 +20,13 @@ object HelloWorld extends ZIOAppDefault with TextResponse with AuthN {
       // costs:
       //   /-/perSystem -> 1
       //   /alice/perUser -> 1
-      case req @ Method.GET -> !! / "simple" => simple[S](req).runThrottlingIO.runKVStoreIO(store).runEither[Throwable].map(toResponse).run
+      case req @ Method.GET -> !! / "simple" => simple[S](req).runThrottlingIO.runKVStore(store).runEither[Throwable].map(toResponse).run
 
       // GET /double
       // costs:
       //   /-/perSystem -> 3
       //   /alice/perUser -> 3
-      case req @ Method.GET -> !! / "double" => double[S](req).runThrottlingIO.runKVStoreIO(store).runEither[Throwable].map(toResponse).run
+      case req @ Method.GET -> !! / "double" => double[S](req).runThrottlingIO.runKVStore(store).runEither[Throwable].map(toResponse).run
 
       // GET /multiple
       // costs:
@@ -39,7 +34,7 @@ object HelloWorld extends ZIOAppDefault with TextResponse with AuthN {
       //   /alice/perUser -> 1
       //   /alice/tier1 -> 2
       //   /alice/tier2 -> 1
-      case req @ Method.GET -> !! / "multiple" => multiple[S](req).runThrottlingIO.runKVStoreIO(store).runEither[Throwable].map(toResponse).run
+      case req @ Method.GET -> !! / "multiple" => multiple[S](req).runThrottlingIO.runKVStore(store).runEither[Throwable].map(toResponse).run
     }
   }
 
@@ -51,8 +46,8 @@ object HelloWorld extends ZIOAppDefault with TextResponse with AuthN {
 
     for {
       u <- authenticate[R](req)
-      _ <- ThrottlingIO.use[R]("/-/perSystem", 1)
-      _ <- ThrottlingIO.use[R](s"/$u/perUser", 1)
+      _ <- ThrottlingIOEffect.use[R]("/-/perSystem", 1)
+      _ <- ThrottlingIOEffect.use[R](s"/$u/perUser", 1)
       x <- doA[R]
     } yield Response.text(x)
   }
@@ -73,8 +68,8 @@ object HelloWorld extends ZIOAppDefault with TextResponse with AuthN {
 
     for {
       u <- authenticate[R](req)
-      _ <- ThrottlingIO.use[R]("/-/perSystem", 2)
-      _ <- ThrottlingIO.use[R](s"/$u/perUser", 2)
+      _ <- ThrottlingIOEffect.use[R]("/-/perSystem", 2)
+      _ <- ThrottlingIOEffect.use[R](s"/$u/perUser", 2)
       x <- doA[R] // heavy
     } yield Response.text(x)
   }
@@ -82,24 +77,24 @@ object HelloWorld extends ZIOAppDefault with TextResponse with AuthN {
   def multiple[R: _throttlingio](req: Request): Eff[R, Response] = {
 
     def doA[R1: _throttlingio](user: AuthenticatedUser): Eff[R1, String] = for {
-      _ <- ThrottlingIO.use[R1](s"/$user/tier1", 1)
+      _ <- ThrottlingIOEffect.use[R1](s"/$user/tier1", 1)
       v <- pure[R1, String]("Hello")
     } yield v
 
     def doB[R2: _throttlingio](user: AuthenticatedUser): Eff[R2, String] = for {
-      _ <- ThrottlingIO.use[R2](s"/$user/tier2", 1)
+      _ <- ThrottlingIOEffect.use[R2](s"/$user/tier2", 1)
       v <- pure[R2, String]("world!")
     } yield v
 
     def doC[R3: _throttlingio](user: AuthenticatedUser)(hello: String, world: String): Eff[R3, String] = for {
-      _ <- ThrottlingIO.use[R3](s"/$user/tier1", 1)
+      _ <- ThrottlingIOEffect.use[R3](s"/$user/tier1", 1)
       v <- pure[R3, String](s"$hello $world")
     } yield v
 
     for {
       u <- authenticate[R](req)
-      _ <- ThrottlingIO.use[R]("/-/perSystem", 1)
-      _ <- ThrottlingIO.use[R](s"/$u/perUser", 1)
+      _ <- ThrottlingIOEffect.use[R]("/-/perSystem", 1)
+      _ <- ThrottlingIOEffect.use[R](s"/$u/perUser", 1)
       x <- doA[R](u)
       y <- doB[R](u)
       z <- doC[R](u)(x, y)

@@ -1,6 +1,6 @@
-package com.github.kzmake.throttling
+package com.github.kzmake.eff
 
-case class Bucket(size: Int, leak: Long)
+final case class Bucket(size: Int, leak: Long)
 
 object Bucket {
   def mock(key: String): Bucket = key match {
