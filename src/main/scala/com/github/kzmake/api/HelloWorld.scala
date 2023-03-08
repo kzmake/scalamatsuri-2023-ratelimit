@@ -17,11 +17,11 @@ object HelloWorld extends ZIOAppDefault with TextResponse with AuthN {
     type S = ThrottlingIOStack
 
     Http.collect[Request] {
-      // GET /simple
+      // GET /single
       // costs:
       //   /-/perSystem -> 1
       //   /alice/perUser -> 1
-      case req @ Method.GET -> !! / "simple" => simple[S](req).runThrottlingIO.runKVStore(store).runEither[Throwable].map(toResponse).run
+      case req @ Method.GET -> !! / "single" => single[S](req).runThrottlingIO.runKVStore(store).runEither[Throwable].map(toResponse).run
 
       // GET /double
       // costs:
@@ -39,7 +39,7 @@ object HelloWorld extends ZIOAppDefault with TextResponse with AuthN {
     }
   }
 
-  def simple[R: _throttlingio](req: Request): Eff[R, Response] = {
+  def single[R: _throttlingio](req: Request): Eff[R, Response] = {
 
     def doA[R1]: Eff[R1, String] = for {
       x <- pure[R1, String]("Hello world!")

@@ -13,7 +13,7 @@ object HelloWorldSpec extends ZIOSpecDefault {
         check(
           Gen.fromIterable(
             Seq(
-              Request.get(URL(!! / "simple")),
+              Request.get(URL(!! / "single")),
               Request.get(URL(!! / "double")),
               Request.get(URL(!! / "multiple")),
             ),
@@ -28,7 +28,7 @@ object HelloWorldSpec extends ZIOSpecDefault {
         check(
           Gen.fromIterable(
             Seq(
-              Request.get(URL(!! / "simple")),
+              Request.get(URL(!! / "single")),
               Request.get(URL(!! / "double")),
               Request.get(URL(!! / "multiple")),
             ),
