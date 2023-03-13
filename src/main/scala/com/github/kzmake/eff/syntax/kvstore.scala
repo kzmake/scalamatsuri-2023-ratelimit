@@ -10,14 +10,14 @@ import org.atnos.eff.syntax.all._
 trait kvstore {
   implicit class KVStoreEffectOps[R, A](e: Eff[R, A]) {
     def runKVStore[U1, U2](
-        store: TrieMap[String, (Long, Long)],
+        store: TrieMap[String, (Long, Any)],
       )(implicit
         m1: Member.Aux[KVStore, R, U1],
         m2: Member.Aux[StateKeyValue, U1, U2],
       ): Eff[U2, A] =
       KVStoreInterpretation
         .run(e)
-        .evalStateU[TrieMap[String, (Long, Long)], U2](store)
+        .evalStateU[TrieMap[String, (Long, Any)], U2](store)
   }
 }
 object kvstore extends kvstore

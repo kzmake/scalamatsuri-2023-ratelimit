@@ -24,8 +24,8 @@ trait KVStoreTypes {
 object KVStoreTypes extends KVStoreTypes
 
 trait KVStoreCreation extends KVStoreTypes {
-  def setEx[R: _kvstore](key: String, value: Long, ttl: Long): Eff[R, Unit] = Eff.send[KVStore, R, Unit](SetEx(key, value, ttl))
-  def get[R: _kvstore](key: String): Eff[R, Option[Long]]                   = Eff.send[KVStore, R, Option[Long]](Get(key))
+  def setEx[R: _kvstore, T](key: String, ttl: Long, value: T): Eff[R, Unit] = Eff.send[KVStore, R, Unit](SetEx(key, ttl, value))
+  def get[R: _kvstore, T](key: String): Eff[R, Option[T]]                   = Eff.send[KVStore, R, Option[T]](Get(key))
 }
 
 trait KVStoreInterpretation  extends KVStoreTypes {
@@ -58,6 +58,6 @@ trait KVStoreInterpretation  extends KVStoreTypes {
 }
 object KVStoreInterpretation extends KVStoreInterpretation
 
-sealed trait KVStore[+A]
-final case class SetEx(key: String, value: Long, ttl: Long) extends KVStore[Unit]
-final case class Get(key: String)                           extends KVStore[Option[Long]]
+sealed trait KVStore[A]
+final case class SetEx[T](key: String, ttl: Long, value: T) extends KVStore[Unit]
+final case class Get[T](key: String)                        extends KVStore[Option[T]]

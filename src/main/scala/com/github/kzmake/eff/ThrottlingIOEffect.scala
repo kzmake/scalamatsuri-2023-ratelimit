@@ -39,7 +39,7 @@ trait ThrottlingIOInterpretation  extends ThrottlingIOTypes {
   def getBucket[R](key: String): Eff[R, Bucket] = Bucket.mock(key).pureEff[R] // !!
 
   def validate[R: _kvstore: _throwableEither](key: String, quantity: Long, ta: Long): Eff[R, Unit] = for {
-    tat <- KVStoreEffect.get[R](key).map(_.getOrElse(ta))
+    tat <- KVStoreEffect.get[R, Long](key).map(_.getOrElse(ta))
     b   <- getBucket[R](key)
     _   <- {
       // [ms]
@@ -62,7 +62,7 @@ trait ThrottlingIOInterpretation  extends ThrottlingIOTypes {
   } yield ()
 
   def update[R: _kvstore](key: String, quantity: Long, ta: Long): Eff[R, Unit] = for {
-    tat <- KVStoreEffect.get(key).map(_.getOrElse(ta))
+    tat <- KVStoreEffect.get[R, Long](key).map(_.getOrElse(ta))
     b   <- getBucket(key)
     _   <- {
       // [ms]
@@ -72,7 +72,7 @@ trait ThrottlingIOInterpretation  extends ThrottlingIOTypes {
       val expireAt = newTAT
       val ttl      = expireAt - ta
 
-      KVStoreEffect.setEx(key, newTAT, ttl)
+      KVStoreEffect.setEx[R, Long](key, ttl, newTAT)
     }
   } yield ()
 

@@ -13,7 +13,7 @@ import zio.http._
 import zio.http.model.Method
 
 object HelloWorld extends ZIOAppDefault with TextResponse with AuthN {
-  def app(store: TrieMap[String, (Long, Long)] = TrieMap.empty): Http[Any, Nothing, Request, Response] = {
+  def app(store: TrieMap[String, (Long, Any)] = TrieMap.empty): Http[Any, Nothing, Request, Response] = {
     type S = ThrottlingIOStack
 
     Http.collect[Request] {
