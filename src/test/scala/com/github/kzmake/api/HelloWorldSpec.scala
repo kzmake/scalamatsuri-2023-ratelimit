@@ -39,7 +39,7 @@ object HelloWorldSpec extends ZIOSpecDefault {
               .app(
                 TrieMap.from(
                   Seq(
-                    ("/users/alice", (9999999999999999L, 9999999999999999L)),
+                    ("monetization:users/alice", (9999999999999999L, 9999999999999999L)),
                   ),
                 ),
               )

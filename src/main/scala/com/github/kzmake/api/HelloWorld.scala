@@ -2,6 +2,7 @@ package com.github.kzmake.api
 
 import scala.collection.concurrent.TrieMap
 
+import com.github.kzmake
 import com.github.kzmake.eff.ThrottlingIOEffect
 import com.github.kzmake.eff.all._
 import com.github.kzmake.eff.syntax.all._
@@ -12,9 +13,7 @@ import zio._
 import zio.http._
 import zio.http.model.Method
 
-object HelloWorld extends ZIOAppDefault with TextResponse with AuthN {
-  type S = ThrottlingIOStack
-
+object HelloWorld extends ZIOAppDefault with TextResponse with RequestExtractor {
   def app(store: TrieMap[String, (Long, Any)] = TrieMap.empty): Http[Any, Nothing, Request, Response] = {
     type S = ThrottlingIOStack
 
@@ -48,10 +47,12 @@ object HelloWorld extends ZIOAppDefault with TextResponse with AuthN {
     } yield x
 
     for {
-      user <- authenticate[R](req)
+      user      <- authenticate[R](req)
+      ipAddress <- ipAddress[R](req)
 
-      _ <- ThrottlingIOEffect.request[R]("/services/hoge", 1)
-      _ <- ThrottlingIOEffect.request[R](s"/users/$user", 1)
+      _ <- ThrottlingIOEffect.request[R](s"security:ipAddress/$ipAddress", 1)
+      _ <- ThrottlingIOEffect.request[R]("performance:services/hoge", 1)
+      _ <- ThrottlingIOEffect.request[R](s"monetization:users/$user", 1)
 
       x <- doA[R]
     } yield Response.text(x)
@@ -72,55 +73,60 @@ object HelloWorld extends ZIOAppDefault with TextResponse with AuthN {
     }
 
     for {
-      user <- authenticate[R](req)
+      user      <- authenticate[R](req)
+      ipAddress <- ipAddress[R](req)
 
-      _ <- ThrottlingIOEffect.request[R]("/services/hoge", 2)
-      _ <- ThrottlingIOEffect.request[R](s"/users/$user", 2)
+      _ <- ThrottlingIOEffect.request[R](s"security:ipAddress/$ipAddress", 2)
+      _ <- ThrottlingIOEffect.request[R]("performance:services/hoge", 2)
+      _ <- ThrottlingIOEffect.request[R](s"monetization:users/$user", 2)
 
       x <- doA[R] // heavy
     } yield Response.text(x)
   }
 
-  def doA[R1: _throttlingio](user: AuthenticatedUser): Eff[R1, String] = for {
+  def doA[R1: _throttlingio](user: User): Eff[R1, String] = for {
     _ <- ThrottlingIOEffect.request[R1](s"/users/$user/tiers/1111", 1)
     v <- pure[R1, String]("Hello")
   } yield v
 
-  def doB[R2: _throttlingio](user: AuthenticatedUser): Eff[R2, String] = for {
+  def doB[R2: _throttlingio](user: User): Eff[R2, String] = for {
     _ <- ThrottlingIOEffect.request[R2](s"/users/$user/tiers/2222", 1)
     v <- pure[R2, String]("world!")
   } yield v
 
-  def doC[R3: _throttlingio](user: AuthenticatedUser)(hello: String, world: String): Eff[R3, String] = for {
+  def doC[R3: _throttlingio](user: User)(hello: String, world: String): Eff[R3, String] = for {
     _ <- ThrottlingIOEffect.request[R3](s"/users/$user/tiers/1111", 1)
     v <- pure[R3, String](s"$hello $world")
   } yield v
 
   def multiple[R: _throttlingio](req: Request): Eff[R, Response] = {
-    def doA[R1: _throttlingio](user: AuthenticatedUser): Eff[R1, String] = for {
-      _ <- ThrottlingIOEffect.request[R1](s"/users/$user/tiers/1111", 1)
+
+    def doA[R1: _throttlingio](user: User): Eff[R1, String] = for {
+      _ <- ThrottlingIOEffect.request[R1](s"monetization:users/$user/tiers/1111", 1)
       v <- pure[R1, String]("Hello")
     } yield v
 
-    def doB[R2: _throttlingio](user: AuthenticatedUser): Eff[R2, String] = for {
-      _ <- ThrottlingIOEffect.request[R2](s"/users/$user/tiers/2222", 1)
+    def doB[R2: _throttlingio](user: User): Eff[R2, String] = for {
+      _ <- ThrottlingIOEffect.request[R2](s"monetization:users/$user/tiers/2222", 1)
       v <- pure[R2, String]("world!")
     } yield v
 
-    def doC[R3: _throttlingio](user: AuthenticatedUser)(hello: String, world: String): Eff[R3, String] = for {
-      _ <- ThrottlingIOEffect.request[R3](s"/users/$user/tiers/1111", 1)
+    def doC[R3: _throttlingio](user: User)(hello: String, world: String): Eff[R3, String] = for {
+      _ <- ThrottlingIOEffect.request[R3](s"monetization:users/$user/tiers/1111", 1)
       v <- pure[R3, String](s"$hello $world")
     } yield v
 
     for {
-      user <- authenticate[R](req)
+      user      <- authenticate[R](req)
+      ipAddress <- ipAddress[R](req)
 
-      _ <- ThrottlingIOEffect.request[R]("/services/hoge", 1)
-      _ <- ThrottlingIOEffect.request[R](s"/users/$user", 1)
+      _ <- ThrottlingIOEffect.request[R](s"security:ipAddress/$ipAddress", 1)
+      _ <- ThrottlingIOEffect.request[R]("performance:services/hoge", 1)
+      _ <- ThrottlingIOEffect.request[R](s"monetization:users/$user", 1)
 
-      x <- doA[R](user)       // with ThrottlingIOEffect.request[R](1, s"/users/$user/tiers/1111")
-      y <- doB[R](user)       // with ThrottlingIOEffect.request[R](1, s"/users/$user/tiers/2222")
-      z <- doC[R](user)(x, y) // with ThrottlingIOEffect.request[R](1, s"/users/$user/tiers/1111")
+      x <- doA[R](user)       // with request[R](s"monetization:users/$user/tiers/1111", 1)
+      y <- doB[R](user)       // with request[R](s"monetization:users/$user/tiers/2222", 1)
+      z <- doC[R](user)(x, y) // with request[R](s"monetization:users/$user/tiers/1111", 1)
     } yield Response.text(z)
   }
 
