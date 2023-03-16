@@ -16,7 +16,7 @@ object KVStoreEffect extends KVStoreEffect
 trait KVStoreTypes {
   type _kvstore[R] = KVStore |= R
 
-  type StateKeyValue[A]  = State[TrieMap[String, (Long, Long)], A]
+  type StateKeyValue[A]  = State[TrieMap[String, (Long, Any)], A]
   type _stateKeyValue[R] = StateKeyValue /= R
 
   type KVStoreStack = Fx.fx2[KVStore, StateKeyValue]
@@ -38,19 +38,19 @@ trait KVStoreInterpretation  extends KVStoreTypes {
     translate(effects)(new Translate[KVStore, U] {
       def apply[X](kv: KVStore[X]): Eff[U, X] =
         kv match {
-          case SetEx(key, value, ttl) =>
+          case SetEx(key, ttl, value) =>
             for {
               n <- Instant.now().toEpochMilli.pureEff[U]
-              _ <- StateEffect.modify[U, TrieMap[String, (Long, Long)]](_ += (key -> (value, n + ttl)))
+              _ <- StateEffect.modify[U, TrieMap[String, (Long, Any)]](m => m += (key -> (n + ttl, value)))
             } yield ()
 
           case Get(key) =>
             for {
               n <- Instant.now().toEpochMilli.pureEff[U]
-              v <- StateEffect.get[U, TrieMap[String, (Long, Long)]].map(_.get(key)).map {
-                case Some((value, expire_at)) if expire_at >= n => Some(value)
-                case Some(_)                                    => None
-                case None                                       => None
+              v <- StateEffect.get[U, TrieMap[String, (Long, Any)]].map(_.get(key)).map {
+                case Some((expireAt, value)) if expireAt >= n => Some(value)
+                case Some(_)                                  => None
+                case None                                     => None
               }
             } yield v
         }

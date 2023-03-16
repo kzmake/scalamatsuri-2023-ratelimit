@@ -7,5 +7,6 @@ import zio.http.Request
 trait AuthN {
   type AuthenticatedUser = String
 
+  @scala.annotation.nowarn
   def authenticate[R](req: Request): Eff[R, AuthenticatedUser] = "alice".pureEff[R]
 }

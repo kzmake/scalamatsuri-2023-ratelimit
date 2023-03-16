@@ -13,6 +13,8 @@ import zio.http._
 import zio.http.model.Method
 
 object HelloWorld extends ZIOAppDefault with TextResponse with AuthN {
+  type S = ThrottlingIOStack
+
   def app(store: TrieMap[String, (Long, Any)] = TrieMap.empty): Http[Any, Nothing, Request, Response] = {
     type S = ThrottlingIOStack
 
@@ -30,11 +32,11 @@ object HelloWorld extends ZIOAppDefault with TextResponse with AuthN {
       case req @ Method.GET -> !! / "double" => double[S](req).runThrottlingIO.runKVStore(store).runEither[Throwable].map(toResponse).run
 
       // GET /multiple
-      // costs:
-      //   /-/perSystem -> 1
-      //   /alice/perUser -> 1
-      //   /alice/tier1 -> 2
-      //   /alice/tier2 -> 1
+      // requests:
+      //   /services/hoge -> 1 cell
+      //   /users/alice -> 1 cell
+      //   /users/alice/tiers/1111 -> 2 cells
+      //   /users/alice/tiers/2222 -> 1 cell
       case req @ Method.GET -> !! / "multiple" => multiple[S](req).runThrottlingIO.runKVStore(store).runEither[Throwable].map(toResponse).run
     }
   }
@@ -46,9 +48,11 @@ object HelloWorld extends ZIOAppDefault with TextResponse with AuthN {
     } yield x
 
     for {
-      u <- authenticate[R](req)
-      _ <- ThrottlingIOEffect.use[R]("/-/perSystem", 1)
-      _ <- ThrottlingIOEffect.use[R](s"/$u/perUser", 1)
+      user <- authenticate[R](req)
+
+      _ <- ThrottlingIOEffect.request[R]("/services/hoge", 1)
+      _ <- ThrottlingIOEffect.request[R](s"/users/$user", 1)
+
       x <- doA[R]
     } yield Response.text(x)
   }
@@ -68,37 +72,55 @@ object HelloWorld extends ZIOAppDefault with TextResponse with AuthN {
     }
 
     for {
-      u <- authenticate[R](req)
-      _ <- ThrottlingIOEffect.use[R]("/-/perSystem", 2)
-      _ <- ThrottlingIOEffect.use[R](s"/$u/perUser", 2)
+      user <- authenticate[R](req)
+
+      _ <- ThrottlingIOEffect.request[R]("/services/hoge", 2)
+      _ <- ThrottlingIOEffect.request[R](s"/users/$user", 2)
+
       x <- doA[R] // heavy
     } yield Response.text(x)
   }
 
-  def multiple[R: _throttlingio](req: Request): Eff[R, Response] = {
+  def doA[R1: _throttlingio](user: AuthenticatedUser): Eff[R1, String] = for {
+    _ <- ThrottlingIOEffect.request[R1](s"/users/$user/tiers/1111", 1)
+    v <- pure[R1, String]("Hello")
+  } yield v
 
+  def doB[R2: _throttlingio](user: AuthenticatedUser): Eff[R2, String] = for {
+    _ <- ThrottlingIOEffect.request[R2](s"/users/$user/tiers/2222", 1)
+    v <- pure[R2, String]("world!")
+  } yield v
+
+  def doC[R3: _throttlingio](user: AuthenticatedUser)(hello: String, world: String): Eff[R3, String] = for {
+    _ <- ThrottlingIOEffect.request[R3](s"/users/$user/tiers/1111", 1)
+    v <- pure[R3, String](s"$hello $world")
+  } yield v
+
+  def multiple[R: _throttlingio](req: Request): Eff[R, Response] = {
     def doA[R1: _throttlingio](user: AuthenticatedUser): Eff[R1, String] = for {
-      _ <- ThrottlingIOEffect.use[R1](s"/$user/tier1", 1)
+      _ <- ThrottlingIOEffect.request[R1](s"/users/$user/tiers/1111", 1)
       v <- pure[R1, String]("Hello")
     } yield v
 
     def doB[R2: _throttlingio](user: AuthenticatedUser): Eff[R2, String] = for {
-      _ <- ThrottlingIOEffect.use[R2](s"/$user/tier2", 1)
+      _ <- ThrottlingIOEffect.request[R2](s"/users/$user/tiers/2222", 1)
       v <- pure[R2, String]("world!")
     } yield v
 
     def doC[R3: _throttlingio](user: AuthenticatedUser)(hello: String, world: String): Eff[R3, String] = for {
-      _ <- ThrottlingIOEffect.use[R3](s"/$user/tier1", 1)
+      _ <- ThrottlingIOEffect.request[R3](s"/users/$user/tiers/1111", 1)
       v <- pure[R3, String](s"$hello $world")
     } yield v
 
     for {
-      u <- authenticate[R](req)
-      _ <- ThrottlingIOEffect.use[R]("/-/perSystem", 1)
-      _ <- ThrottlingIOEffect.use[R](s"/$u/perUser", 1)
-      x <- doA[R](u)
-      y <- doB[R](u)
-      z <- doC[R](u)(x, y)
+      user <- authenticate[R](req)
+
+      _ <- ThrottlingIOEffect.request[R]("/services/hoge", 1)
+      _ <- ThrottlingIOEffect.request[R](s"/users/$user", 1)
+
+      x <- doA[R](user)       // with ThrottlingIOEffect.request[R](1, s"/users/$user/tiers/1111")
+      y <- doB[R](user)       // with ThrottlingIOEffect.request[R](1, s"/users/$user/tiers/2222")
+      z <- doC[R](user)(x, y) // with ThrottlingIOEffect.request[R](1, s"/users/$user/tiers/1111")
     } yield Response.text(z)
   }
 

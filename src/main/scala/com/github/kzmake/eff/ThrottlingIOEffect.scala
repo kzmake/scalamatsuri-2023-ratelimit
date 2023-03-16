@@ -28,8 +28,8 @@ trait ThrottlingIOTypes {
 object ThrottlingIOTypes extends ThrottlingIOTypes
 
 trait ThrottlingIOCreation  extends ThrottlingIOTypes {
-  def use[R: _throttlingio](bucket: String, cost: Int): Eff[R, Unit] = Eff.send[ThrottlingIO, R, Unit](Use(bucket, cost))
-  def throttle[R: _throttlingio]: Eff[R, Unit]                       = Eff.send[ThrottlingIO, R, Unit](Throttle())
+  def request[R: _throttlingio](bucket: String, cost: Int): Eff[R, Unit] = Eff.send[ThrottlingIO, R, Unit](Request(bucket, cost))
+  def throttle[R: _throttlingio]: Eff[R, Unit]                           = Eff.send[ThrottlingIO, R, Unit](Throttle())
 }
 object ThrottlingIOCreation extends ThrottlingIOCreation
 
@@ -85,7 +85,7 @@ trait ThrottlingIOInterpretation  extends ThrottlingIOTypes {
       me: _throwableEither[U],
     ): Eff[U, A] = translate(effects)(new Translate[ThrottlingIO, U] {
     def apply[X](v: ThrottlingIO[X]): Eff[U, X] = v match {
-      case Use(bucket, cost) =>
+      case Request(bucket, cost) =>
         for {
           k <- bucket.pureEff[U]
           v <- StateEffect.get[U, TrieMap[String, Int]].map(_.getOrElse(k, 0))
@@ -110,5 +110,5 @@ trait ThrottlingIOInterpretation  extends ThrottlingIOTypes {
 object ThrottlingIOInterpretation extends ThrottlingIOInterpretation
 
 sealed trait ThrottlingIO[A]
-final case class Use(bucket: String, cost: Int) extends ThrottlingIO[Unit]
-final case class Throttle()                     extends ThrottlingIO[Unit]
+final case class Request(bucket: String, n: Int) extends ThrottlingIO[Unit]
+final case class Throttle()                      extends ThrottlingIO[Unit]
